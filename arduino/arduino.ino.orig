@@ -1,14 +1,34 @@
 #include <SoftwareSerial.h>
- 
-SoftwareSerial BT(10, 11); // RX, TX
-int BluetoothData;
- 
+
+void flashLed(int ms,int pin);
+long getFilteredDistance();
+void detect(int distance);
+
+// Bluetooth Module
+const int rx = 10;
+const int tx = 11;
+
+// Ultrasonic sensor
 const int trig = 7, echo = 6;
+
+// Too Close detection
+const int tooClose = 5;
+const int goodDistance = 4;
+const int tresholdUpdate = 3;
+
+int treshold = 10; // in centimeters
+
+SoftwareSerial BT(rx,tx);
 
 void setup() {
     pinMode(LED_BUILTIN,OUTPUT);
+
     pinMode(trig,OUTPUT);
     pinMode(echo,INPUT);
+
+    pinMode(tooClose,OUTPUT);
+    pinMode(goodDistance,OUTPUT);
+    pinMode(tresholdUpdate,OUTPUT);
 
     // Begin USB Serial
     Serial.begin(9600);
@@ -17,58 +37,83 @@ void setup() {
     Serial.println("Desk monitor");
     BT.println("Desk Monitor");
 }
- 
-void loop() 
+
+void loop()
 {
-  Serial.println("Measuring data");
+    // Reading bluetooth data if available
+    if (BT.available()) {
+        auto data = BT.readString();
 
-  auto distances = 0;
-  auto numMeasure = 0;
+        if (data.startsWith("tres:")) {
+            String num = data.substring(5);
+            treshold = num.toInt();
 
-  for(auto i =0;i<10; i++) {
-    auto distance = getDistance();
-
-    if (distance >= 200) {
-      flashLed(100);
-      continue;
+            flashLed(100, tresholdUpdate);
+        }
     }
 
-    distances += distance;
-    numMeasure ++;
-    delay(100);
-  }
-
-  /*Serial.println("Distances: "+distances);*/
-  /*Serial.println("numMeasure: "+numMeasure);*/
-
-  auto distance = distances / numMeasure;
-
-  Serial.println(distance);
-  BT.println(distance);
+    auto distance = getFilteredDistance();
+    Serial.println(distance);
+    BT.println(distance);
 }
 
-void flashLed(int ms) {
-  digitalWrite(LED_BUILTIN,HIGH);
-  delay(ms);
-  digitalWrite(LED_BUILTIN,LOW);
-  delay(ms);
+void flashLed(int ms,int pin) {
+    digitalWrite(pin,HIGH);
+    delay(ms);
+    digitalWrite(pin,LOW);
+    delay(ms);
 }
 
-/* 
+/*
 * Read distance (in centimeters)
 */
 long getDistance() {
-  // Clear trig pin
-  digitalWrite(trig, LOW);
-  delayMicroseconds(2);
+    // Clear trig pin
+    digitalWrite(trig, LOW);
+    delayMicroseconds(2);
 
-  // Send pulse to trig
-  digitalWrite(trig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trig, LOW);
+    // Send pulse to trig
+    digitalWrite(trig, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trig, LOW);
 
-  // Get pulse time for echo
-  long duration = pulseIn(echo, HIGH);
+    // Get pulse time for echo
+    long duration = pulseIn(echo, HIGH);
 
-  return duration * 0.034 / 2; // Speed of sound wave divided by 2 (go and back)
+    return duration * 0.034 / 2; // Speed of sound wave divided by 2 (go and back)
+}
+
+void detect(int distance) {
+        // Too Close detection
+        if (distance <= treshold) {
+            digitalWrite(tooClose,HIGH);
+            digitalWrite(goodDistance,LOW);
+        } else {
+            digitalWrite(tooClose,LOW);
+            digitalWrite(goodDistance,HIGH);
+        }
+}
+
+long getFilteredDistance() {
+
+    auto distances = 0;
+    auto numMeasure = 0;
+
+    for(auto i =0; i<10; i++) {
+        auto distance = getDistance();
+
+        if (distance >= 200) {
+            flashLed(100, LED_BUILTIN); // Indicate bad value.
+            continue;
+        }
+
+        detect(distance);
+
+        distances += distance;
+        numMeasure ++;
+        delay(100);
+    }
+
+    auto distance = distances / numMeasure;
+    return distance;
 }
