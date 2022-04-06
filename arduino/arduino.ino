@@ -48,7 +48,9 @@ void loop()
             String num = data.substring(5);
             treshold = num.toInt();
 
-            flashLed(100, tresholdUpdate);
+            digitalWrite(tooClose,LOW);
+            digitalWrite(goodDistance,LOW);
+            flashLed(1000, tresholdUpdate);
         }
     }
 
@@ -100,10 +102,12 @@ long getFilteredDistance() {
     auto numMeasure = 0;
 
     for(auto i =0; i<10; i++) {
+        flashLed(100, LED_BUILTIN);
         auto distance = getDistance();
 
+
         if (distance >= 200) {
-            flashLed(100, LED_BUILTIN); // Indicate bad value.
+            flashLed(600, LED_BUILTIN); // Indicate bad value.
             continue;
         }
 
@@ -111,7 +115,6 @@ long getFilteredDistance() {
 
         distances += distance;
         numMeasure ++;
-        delay(100);
     }
 
     auto distance = distances / numMeasure;
