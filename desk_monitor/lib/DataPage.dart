@@ -103,7 +103,7 @@ class _DataPage extends State<DataPage> {
                   padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
                   child: SingleChildScrollView(
                     child:
-                        Text(messages.map((e) => e.text.trim()).toList().toString()),
+                        Text(messages.map((e) => e.text.trim().replaceAll("\n", "")).toList().toString()),
                     scrollDirection: Axis.horizontal,
                   ),
                 ),
